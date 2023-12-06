@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/gorilla/mux"
 )
 
 type Article struct {
@@ -17,6 +18,7 @@ type Article struct {
 }
 
 var posts = []Article{}
+var showPost = Article{}
 
 func index(w http.ResponseWriter, r *http.Request) {
 	t, err := template.ParseFiles("template/index.html", "template/header.html", "template/footer.html")
@@ -79,10 +81,43 @@ func SaveArticle(w http.ResponseWriter, r *http.Request) {
 	}
 
 }
+func AboutPost(w http.ResponseWriter, r *http.Request) {
+	t, err := template.ParseFiles("template/show.html", "template/header.html", "template/footer.html")
+	if err != nil {
+		fmt.Fprintf(w, err.Error())
+	}
+	vars := mux.Vars(r)
+	db, err := sql.Open("mysql", "root:@tcp(127.0.0.1:3306)/golang")
+	if err != nil {
+		panic(err.Error)
+	}
+
+	defer db.Close()
+
+	send, err := db.Query(fmt.Sprintf("SELECT *FROM `articles` WHERE `Id`='%s'", vars["Id"]))
+	if err != nil {
+		panic(err.Error)
+	}
+	showPost = Article{}
+	for send.Next() {
+		var post Article
+		err = send.Scan(&post.Id, &post.Title, &post.Anons, &post.Fulltext)
+		if err != nil {
+			panic(err.Error)
+		}
+
+		showPost = post
+	}
+	t.ExecuteTemplate(w, "show", posts)
+}
 func HandlePage() {
-	http.HandleFunc("/", index)
-	http.HandleFunc("/create", create)
-	http.HandleFunc("/SaveArticle", SaveArticle)
+	rtr := mux.NewRouter()
+	rtr.HandleFunc("/", index).Methods("GET")
+	rtr.HandleFunc("/create", create).Methods("GET")
+	rtr.HandleFunc("/SaveArticle", SaveArticle).Methods("POST")
+	rtr.HandleFunc("/post/{Id:[0-9]+}", AboutPost).Methods("GET")
+
+	http.Handle("/", rtr)
 	http.ListenAndServe(":8080", nil)
 }
 func main() {
