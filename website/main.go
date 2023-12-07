@@ -108,7 +108,7 @@ func AboutPost(w http.ResponseWriter, r *http.Request) {
 
 		showPost = post
 	}
-	t.ExecuteTemplate(w, "show", posts)
+	t.ExecuteTemplate(w, "show", showPost)
 }
 func HandlePage() {
 	rtr := mux.NewRouter()
